@@ -1,16 +1,15 @@
-require("peg")
-print("simples css exemplo")]
+require "peg"
+
+print("simples css exemplo\n")
 
 l = peg.locale()
 
-local P = peg.P V = peg.V R = peg.R s = l.space['*'] a = l.alpha an = l.alnum
+local P = peg.P V = peg.V R = peg.R s = l.space['*'] a = l.alpha an = l.alnum EOF = peg.EOF
 
 local function units( css )
 	local t = {}
-	print(css.unit.string)
 	for k, u in ipairs(css.unit) do
 		t[u.name.string] = {}
-		print(u.name.string, u.properties)
 		t[u.name.string][u.properties.property.key.string] = u.properties.property.value.string
 		for i, v in ipairs(u.properties[2]) do
 			t[u.name.string][v.property.key.string] = v.property.value.string
@@ -21,7 +20,7 @@ end
 
 grammar = peg.P{
 		'css',
-		css = s * V'unit'['*'] * s % units,
+		css = s * V'unit'['*'] * s * EOF % units,
 		unit = s * V'name' * s * P'{' * s * V'properties' * s * P'}' * s, 
 		properties = V'property' * ( ( s * P';' * s )['+'] * V'property' )['*'] * ( s * P';' * s )['*'],
 		property =  V'key' * s * P'=' * s * V'value',
@@ -30,31 +29,32 @@ grammar = peg.P{
 		name = a * an['*'],
 	}
 
-print()
---print(grammar:match('ba'))
 
 local i, r = grammar:match([[ 
 
-nome { property = value;; ; property2 = value; property3 = value }
+nome { property = value;; ; property2 = value2; property3 = value3 }
 
- nome2 { property = value;; ; property2 = value; property3 = value ;; ;  } 
+ nome2 { property = value;; ; property2 = value2; property3 = value3 ;; ;  } 
  nome3 { property = value}
  ]])
-print(r)
+ 
 
 for k,v in pairs( r ) do 
 	print(k,v)
 	for k,v in pairs( v ) do 
 		print(k,v) 
 	end
+	print()
 end
+
 
 print('==========================================================')
 print("json exemplo")
 
 l = peg.locale()
 
-local P = peg.P V = peg.V R = peg.R s = l.space['*'] a = l.alpha an = l.alnum d = l.digit x = l.xdigit
+local P = peg.P V = peg.V R = peg.R s = l.space['*'] a = l.alpha 
+local an = l.alnum d = l.digit x = l.xdigit c = l.character EOF = peg.EOF
 
 local function null( r ) return nil end
 
@@ -66,9 +66,9 @@ local function a( r )
 	local array = {}
 	local elements = r.elements
 	if #elements ~= 0 then
-		array[1] = type(elements.value) == 'table' and elements.value.string or elements.value
+		array[1] = elements.value
 		for i, e in ipairs(elements[3]) do
-			table.insert(array, type(e.value) == 'table' and e.value.string or e.value)
+			table.insert(array, e.value)
 		end
 	end
 	return array
@@ -78,9 +78,9 @@ local function o( r )
 	local obj = {}
 	local members = r.members 
 	if #members ~= 0 then
-		obj[members.pair.str] = type(members.pair.value) == 'table' and members.pair.value.string or members.pair.value
+		obj[members.pair.str] = members.pair.value
 		for i, m in ipairs(members[3]) do
-			obj[m.pair.str] = type(m.pair.value) == 'table' and m.pair.value.string or m.pair.value
+			obj[m.pair.str] = m.pair.value
 		end
 	end
 	return obj
@@ -92,42 +92,43 @@ local function n( r ) return tonumber(r.string) end
 
 grammar = peg.P{
 	'json',
-	json = s * V'value' * s %function( r ) return r.value end,
+	json = s * V'value' * s * EOF %function( r ) return r.value end,
 	object = P'{' * s * V'members'['?'] * s * P'}',
-    members = (P',' * s)['*'] * V'pair' * (( s * P',' * s)['*'] * V'pair')['*'] * ( s * P',' * s)['*'],
+	members = (P',' * s)['*'] * V'pair' * (( s * P',' * s)['*'] * 
+				V'pair')['*'] * ( s * P',' * s)['*'],
 	pair = (V'str' %str) * s * P':' * s * V'value',
 	array = P'[' * s * V'elements'['?'] * s * P']',
-	elements = (P',' * s)['*'] * V'value' * (( s * P',' * s)['*'] * V'value')['*'] * ( s * P',' * s)['*'],
-    value = V'str' %str + V'number' %n + V'object' %o + V'array' %a + 
-			P'true' %t+ P'false' %f + P'null' %null,
+	elements = (P',' * s)['*'] * V'value' * (( s * P',' * s)['*'] * 
+				V'value')['*'] * ( s * P',' * s)['*'],
+	value = V'str' %str + V'number' %n + V'object' %o + V'array' %a + 
+			P'true' %t + P'false' %f + P'null' %null,
 	str = (V'str_dq' + V'str_sq'),
 	str_dq = P'"' * V'chars_dq' * P'"',
 	chars_dq = V'char_dq'['*'],
-    char_dq = P'"'['!'] * ( P'\\"' + P'\\\\' + P'\\/' + P'\\b' + P'\\f' + P'\\n' + P'\\r' + P'\\t' + 
-			( P'\\u' * x * x * x * x) + l.unicode ),
+	char_dq = P'"'['!'] * ( P'\\"' + P'\\\\' + P'\\/' + P'\\b' + P'\\f' + 
+				P'\\n' + P'\\r' + P'\\t' + ( P'\\u' * x * x * x * x) + c ),
 	str_sq = P"'" * V'chars_sq' * P"'",
 	chars_sq = V'char_sq'['*'],
-    char_sq = P"'"['!'] * ( P'\\\'' + P'\\\\' + P'\\/' + P'\\b' + P'\\f' + P'\\n' + P'\\r' + P'\\t' + 
-			( P'\\u' * x * x * x * x) + l.unicode ),
-    number = V'hex' + (V'int' * ( V'frac' * V'exp' + V'frac' + V'exp')['?']),
-    int = P'-'['?'] * V'digit'['+'],
-    digit = R'09',
-    frac = P'.' * V'digit'['+'],
-    exp = V'e' * V'digit'['+'],
-    e = P'e+' + P'e-' + P'e' + P'E+' + P'E-' + P'E',
-    hex = (P'0x' + P'0X') * V'xdigit'['+'],
-    xdigit = R'09' + R'af' + R'AF',
+	char_sq = P"'"['!'] * ( P'\\\'' + P'\\\\' + P'\\/' + P'\\b' + P'\\f' + 
+				P'\\n' + P'\\r' + P'\\t' + ( P'\\u' * x * x * x * x) + c ),
+	number = V'hex' + (V'int' * ( V'frac' * V'exp' + V'frac' + V'exp')['?']),
+	int = P'-'['?'] * V'digit'['+'],
+	digit = R'09',
+	frac = P'.' * V'digit'['+'],
+	exp = V'e' * V'digit'['+'],
+	e = P'e+' + P'e-' + P'e' + P'E+' + P'E-' + P'E',
+	hex = (P'0x' + P'0X') * V'xdigit'['+'],
+	xdigit = R'09' + R'af' + R'AF',
  }
 
 print()
---print(grammar:match('ba'))
 
 local i, r = grammar:match([[ 
 
   { "a": [true, 444.6, "asdf", { "a": 0x10 }, [ ],['\\1234',-4e4], {},,  ,, ], "b": false } 
    
  ]])
-print(i, r, 'aaaaaa')
+
 print()
 
 for k,v in pairs( r ) do 
@@ -141,4 +142,65 @@ for k,v in pairs( r ) do
 end
 
 
+print('==========================================================')
+print("csv exemplo")
+
+l = peg.locale()
+
+local P = peg.P V = peg.V R = peg.R nl = (P'\r\n' + P'\n') 
+local s = l.space['*'] EOF = peg.EOF
+local a = l.alpha an = l.alnum d = l.digit x = l.xdigit c = l.character
+
+
+local function no_quoted( r ) return r.string end 
+local function quoted( r ) return r.string:sub(2,-2):gsub( '""', '"' ) end
+local function lines( r )
+	local t = {}
+	for i, l in ipairs(r[2]) do
+		table.insert(t, {})
+		if l.value ~= 0 and #l[2] ~= 0 then 
+			table.insert(t[#t], l.value) 
+			for i, v in ipairs(l[2]) do
+				table.insert(t[#t], v.value)
+			end
+		end
+	end
+	return t
+end 
+
+grammar = peg.P{
+	'csv',
+	csv = V'lines' %lines,
+	lines = s * V'line'['*'] * s * EOF,
+	line = V'value'['?'] * (P',' * V'value')['*'] * nl,
+	value =  V'quoted' %quoted + V'no_quoted' %no_quoted,
+	no_quoted = (P','['!'] * nl['!'] * c)['+'] ,
+	quoted = P'"' * V'chars_dq' * P'"',
+	chars_dq = V'char_dq'['*'],
+	char_dq = P'""' + P'"'['!'] * c,
+}
+
+print()
+
+local i, r = grammar:match([[
+
+Year,Make,Model,Description,Price
+1997,Ford,E350,"ac, abs, moon",3000.00
+1999,Chevy,"Venture ""Extended Edition""","",4900.00
+1999,Chevy,"Venture ""Extended Edition, Very Large""","",5000.00
+
+1996,Jeep,Grand Cherokee,"MUST SELL!
+air, moon roof, loaded",4799.00
+
+
+ ]])
+
+print(i,r)
+
+for k,v in ipairs( r ) do 
+	print()
+	for i,j in ipairs( v ) do
+		print(i,j)
+	end
+end
 

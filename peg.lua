@@ -1,3 +1,6 @@
+-- Marcelo Cimeno Vizaco
+-- marcelo.vizaco@gmail.com
+-- http://en.wikipedia.org/wiki/Parsing_expression_grammar
 
 module(..., package.seeall)
 
@@ -146,7 +149,7 @@ local function Unaries( Tbl, Key )
 		['?'] = Optional,
 		['+'] = OneOrMore,
 	}
-	assert( t[Key], 'Dont understand such simbol.' )
+	assert( t[Key], 'Dont understand such symbol.' .. (key or '') )
 	return t[Key]( Tbl )
 end
 
@@ -321,11 +324,9 @@ local function locale( new_locale )
 				return string.find( str:sub(i,i), '[abcdefABCDEF%d]' ) and i+1, str:sub(i,i)
 			end
 		},
-		unicode = MakePeg{
+		character = MakePeg{
 			type = 'pattern',
-			__match = function( p, i, str )
-				return string.find( str:sub(i,i), '.' ) and i+1, str:sub(i,i)
-			end
+			__match = P(1).__match
 		},
 	}
 	if new_locale then
@@ -336,12 +337,19 @@ local function locale( new_locale )
 	return l
 end
 
+EOF = MakePeg{
+	type = 'pattern',
+	__match = function( p, i, str )
+		return i > #str and i, ''
+	end	
+}
 
 local __mt = {
 	V = Variable,
 	R = Range,
 	S = Set,
 	P = Pattern,
+	EOF = EOF,
 	locale = locale
 }
 for k, v in pairs( __mt ) do
